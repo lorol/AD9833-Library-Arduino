@@ -62,6 +62,12 @@ typedef enum { SINE_WAVE = 0x2000, TRIANGLE_WAVE = 0x2002,
 			   
 typedef enum { REG0, REG1, SAME_AS_REG0 } Registers;
 
+#if defined (ARDUINO_ARCH_STM32)
+ typedef double FreqType; 
+#else
+ typedef float FreqType;
+#endif
+
 class AD9833 {
 
 public:
@@ -74,7 +80,7 @@ public:
 	// Setup and apply a signal. Note that any calls to EnableOut,
 	// SleepMode, DisableDAC, or DisableInternalClock remain in effect
 	void ApplySignal ( WaveformType waveType, Registers freqReg,
-		float frequencyInHz,
+		FreqType frequencyInHz,
 		Registers phaseReg = SAME_AS_REG0, float phaseInDeg = 0.0 );
 
 	// Resets internal registers to 0, which corresponds to an output of
@@ -82,10 +88,10 @@ public:
 	void Reset ( void );
 
 	// Update just the frequency in REG0 or REG1
-	void SetFrequency ( Registers freqReg, float frequency );
+	void SetFrequency ( Registers freqReg, FreqType frequency );
 
 	// Increment the selected frequency register by freqIncHz
-	void IncrementFrequency ( Registers freqReg, float freqIncHz );
+	void IncrementFrequency ( Registers freqReg, FreqType freqIncHz );
 
 	// Update just the phase in REG0 or REG1
 	void SetPhase ( Registers phaseReg, float phaseInDeg );
@@ -111,15 +117,18 @@ public:
 
 	// Enable / Disable Internal Clock
 	void DisableInternalClock ( bool enable );
+	
+	// Return frequency word
+	int32_t GetFrequencyWord ( Registers reg );
 
 	// Return actual frequency programmed in register 
-	float GetActualProgrammedFrequency ( Registers reg );
+	FreqType GetActualProgrammedFrequency ( Registers reg );
 
 	// Return actual phase programmed in register
 	float GetActualProgrammedPhase ( Registers reg );
 
 	// Return frequency resolution 
-	float GetResolution ( void );
+	FreqType GetResolution ( void );
 
 private:
 
@@ -131,7 +140,8 @@ private:
 #endif
 	uint8_t			outputEnabled, DacDisabled, IntClkDisabled;
 	uint32_t		refFrequency;
-	float			frequency0, frequency1, phase0, phase1;
+	float			phase0, phase1;
+	FreqType        frequency0, frequency1;
 	Registers		activeFreq, activePhase;
 };
 

@@ -25,6 +25,12 @@
 
 #include "AD9833.h"
 
+#if defined (ARDUINO_ARCH_STM32)
+ /* Configure SPI3 of STM32 MOSI: PC12, MISO: PC11, SCLK: PC10*/
+ SPIClass SPIX(PC12, PC11, PC10);
+#else
+  #define SPIX SPI
+#endif
 /*
  * Create an AD9833 object
  */
@@ -61,7 +67,7 @@ AD9833 :: AD9833 ( uint8_t FNCpin, uint32_t referenceFrequency ) {
  * Start SPI and place the AD9833 in the RESET state
  */
 void AD9833 :: Begin ( void ) {
-	SPI.begin();
+	SPIX.begin();
 	delay(100);
 	Reset();	// Hold in RESET until first WriteRegister command
 }
@@ -73,7 +79,7 @@ void AD9833 :: Begin ( void ) {
  * SleepMode, DisableDAC, or DisableInternalClock remain in effect.
  */
 void AD9833 :: ApplySignal ( WaveformType waveType,
-		Registers freqReg, float frequencyInHz,
+		Registers freqReg, FreqType frequencyInHz,
 		Registers phaseReg, float phaseInDeg ) {
 	SetFrequency ( freqReg, frequencyInHz );
 	SetPhase ( phaseReg, phaseInDeg );
@@ -133,7 +139,7 @@ void AD9833 :: Reset ( void ) {
 /*
  *  Set the specified frequency register with the frequency (in Hz)
  */
-void AD9833 :: SetFrequency ( Registers freqReg, float frequency ) {
+void AD9833 :: SetFrequency ( Registers freqReg, FreqType frequency ) {
 	// TODO: calculate max frequency based on refFrequency.
 	// Use the calculations for sanity checks on numbers.
 	// Sanity check on frequency: Square - refFrequency / 2
@@ -146,7 +152,7 @@ void AD9833 :: SetFrequency ( Registers freqReg, float frequency ) {
 	if ( freqReg == REG0 ) frequency0 = frequency;
 	else frequency1 = frequency;
 	
-	int32_t freqWord = (frequency * pow2_28) / (float)refFrequency;
+	int32_t freqWord = (frequency * pow2_28) / (FreqType)refFrequency;
 	int16_t upper14 = (int16_t)((freqWord & 0xFFFC000) >> 14), 
 			lower14 = (int16_t)(freqWord & 0x3FFF);
 
@@ -167,10 +173,10 @@ void AD9833 :: SetFrequency ( Registers freqReg, float frequency ) {
 /*
  * Increment the specified frequency register with the frequency (in Hz)
  */
-void AD9833 :: IncrementFrequency ( Registers freqReg, float freqIncHz ) {
+void AD9833 :: IncrementFrequency ( Registers freqReg, FreqType freqIncHz ) {
 	// Add/subtract a value from the current frequency programmed in
 	// freqReg by the amount given
-	float frequency = (freqReg == REG0) ? frequency0 : frequency1;
+	FreqType frequency = (freqReg == REG0) ? frequency0 : frequency1;
 	SetFrequency(freqReg,frequency+freqIncHz);
 }
 
@@ -277,12 +283,21 @@ void AD9833 :: DisableInternalClock ( bool enable ) {
 
 // ------------ STATUS / INFORMATION FUNCTIONS -------------------
 /*
+ * Return actual frequency word
+ */
+int32_t AD9833 :: GetFrequencyWord ( Registers reg ) {
+	FreqType frequency = reg == REG0 ? frequency0 : frequency1;
+	return  (uint32_t)((frequency * pow2_28) / (FreqType)refFrequency) & 0x0FFFFFFFUL;
+}
+
+
+/*
  * Return actual frequency programmed
  */
-float AD9833 :: GetActualProgrammedFrequency ( Registers reg ) {
-	float frequency = reg == REG0 ? frequency0 : frequency1;
-	int32_t freqWord = (uint32_t)((frequency * pow2_28) / (float)refFrequency) & 0x0FFFFFFFUL;
-	return (float)freqWord * (float)refFrequency / (float)pow2_28;
+FreqType AD9833 :: GetActualProgrammedFrequency ( Registers reg ) {
+	FreqType frequency = reg == REG0 ? frequency0 : frequency1;
+	int32_t freqWord = (uint32_t)((frequency * pow2_28) / (FreqType)refFrequency) & 0x0FFFFFFFUL;
+	return (FreqType)freqWord * (FreqType)refFrequency / (FreqType)pow2_28;
 }
 
 /*
@@ -297,8 +312,8 @@ float AD9833 :: GetActualProgrammedPhase ( Registers reg ) {
 /*
  * Return frequency resolution
  */
-float AD9833 :: GetResolution ( void ) {
-	return (float)refFrequency / (float)pow2_28;
+FreqType AD9833 :: GetResolution ( void ) {
+	return (FreqType)refFrequency / (FreqType)pow2_28;
 }
 
 // --------------------- PRIVATE FUNCTIONS --------------------------
@@ -344,7 +359,7 @@ void AD9833 :: WriteRegister ( int16_t dat ) {
 	/*
 	 * We set the mode here, because other hardware may be doing SPI also
 	 */
-	SPI.setDataMode(SPI_MODE2);
+	SPIX.setDataMode(SPI_MODE2);
 
 	/* Improve overall switching speed
 	 * Note, the times are for this function call, not the write.
@@ -356,8 +371,8 @@ void AD9833 :: WriteRegister ( int16_t dat ) {
 	//delayMicroseconds(2);	// Some delay may be needed
 
 	// TODO: Are we running at the highest clock rate?
-	SPI.transfer(highByte(dat));	// Transmit 16 bits 8 bits at a time
-	SPI.transfer(lowByte(dat));
+	SPIX.transfer(highByte(dat));	// Transmit 16 bits 8 bits at a time
+	SPIX.transfer(lowByte(dat));
 
 	WRITE_FNCPIN(HIGH);		// Write done
 }
