@@ -25,16 +25,10 @@
 
 #include "AD9833.h"
 
-#if defined (ARDUINO_ARCH_STM32)
- /* Configure SPI3 of STM32 MOSI: PC12, MISO: PC11, SCLK: PC10*/
- SPIClass SPIX(PC12, PC11, PC10);
-#else
-  #define SPIX SPI
-#endif
 /*
  * Create an AD9833 object
  */
-AD9833 :: AD9833 ( uint8_t FNCpin, uint32_t referenceFrequency ) {
+AD9833 :: AD9833 ( uint8_t FNCpin, uint32_t referenceFrequency, SPIClass &spiBus ) {
 	// Pin used to enable SPI communication (active LOW)
 #ifdef FNC_PIN
 	pinMode(FNC_PIN,OUTPUT);
@@ -67,7 +61,7 @@ AD9833 :: AD9833 ( uint8_t FNCpin, uint32_t referenceFrequency ) {
  * Start SPI and place the AD9833 in the RESET state
  */
 void AD9833 :: Begin ( void ) {
-	SPIX.begin();
+	_spiBus->begin();
 	delay(100);
 	Reset();	// Hold in RESET until first WriteRegister command
 }
@@ -359,7 +353,7 @@ void AD9833 :: WriteRegister ( int16_t dat ) {
 	/*
 	 * We set the mode here, because other hardware may be doing SPI also
 	 */
-	SPIX.setDataMode(SPI_MODE2);
+	_spiBus->setDataMode(SPI_MODE2);
 
 	/* Improve overall switching speed
 	 * Note, the times are for this function call, not the write.
@@ -371,8 +365,8 @@ void AD9833 :: WriteRegister ( int16_t dat ) {
 	//delayMicroseconds(2);	// Some delay may be needed
 
 	// TODO: Are we running at the highest clock rate?
-	SPIX.transfer(highByte(dat));	// Transmit 16 bits 8 bits at a time
-	SPIX.transfer(lowByte(dat));
+	_spiBus->transfer(highByte(dat));	// Transmit 16 bits 8 bits at a time
+	_spiBus->transfer(lowByte(dat));
 
 	WRITE_FNCPIN(HIGH);		// Write done
 }
