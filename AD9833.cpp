@@ -29,6 +29,8 @@
  * Create an AD9833 object
  */
 AD9833 :: AD9833 ( uint8_t FNCpin, uint32_t referenceFrequency, SPIClass &spiBus ) {
+	_spiBus = &spiBus;
+	
 	// Pin used to enable SPI communication (active LOW)
 #ifdef FNC_PIN
 	pinMode(FNC_PIN,OUTPUT);
